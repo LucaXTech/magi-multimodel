@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import threading
+import time
 from typing import Any
 from uuid import uuid4
 
@@ -14,7 +15,10 @@ from pydantic import BaseModel, Field
 from magi.config import Settings
 from magi.providers import PROVIDER_NAMES, build_providers
 
+from .demo import build_demo_report, list_demo_cases
 from .orchestrator import BioAuditOrchestrator
+
+DEMO_MODE = False
 
 HTML = r'''<!doctype html>
 <html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -29,9 +33,18 @@ label{display:block;margin:12px 0 6px;color:var(--muted)}select,button{border:1p
 button.primary{width:100%;background:linear-gradient(135deg,#087c89,#1251a0);font-weight:800;font-size:16px;cursor:pointer}.status{min-height:24px;color:var(--muted);margin-top:10px}
 .badge{display:inline-block;padding:6px 10px;border-radius:999px;font-weight:800}.PASS{background:#153d2b;color:var(--green)}.REVISE{background:#443817;color:var(--amber)}.BLOCK{background:#491f24;color:var(--red)}
 .issue{border-left:3px solid var(--red);padding:10px 12px;margin:12px 0;background:#0b161c;border-radius:6px}.moderate{border-color:var(--amber)}h2,h3{margin-top:12px}.muted{color:var(--muted)}ol,ul{padding-left:22px}.empty{color:var(--muted);font-style:italic}
+.demo-box{display:none;border:1px solid var(--cyan);background:#092029;padding:12px 14px;margin-bottom:16px;border-radius:12px}
+.demo-box.active{display:block}.demo-box strong{color:var(--cyan);letter-spacing:.08em}.demo-box p{margin:6px 0 12px;color:var(--muted)}
+.demo-box select{width:100%;background:#071117;border:1px solid var(--line);color:var(--text);padding:10px;border-radius:8px}
+.demo-note{border-left:3px solid var(--cyan);background:#091c23;padding:10px 12px;color:var(--muted);margin-bottom:14px}
 @media(max-width:800px){main{padding:10px}.grid{grid-template-columns:1fr}.brand h1{font-size:26px}textarea{min-height:300px}}
 </style></head><body><main>
 <div class="brand"><h1>BIO<span>AUDIT</span></h1><div class="muted">MAGI methodological review</div></div>
+<div id="demoBox" class="demo-box">
+<strong>PRERECORDED DEMO</strong>
+<p>No model API calls are made and no submitted data leave this computer.</p>
+<select id="demoCase"></select>
+</div>
 <div class="grid"><section class="card"><h2>Metodo o pipeline da revisionare</h2>
 <textarea id="text" placeholder="Incolla Methods, protocollo, pipeline ML o descrizione dell'esperimento..."></textarea>
 <label>Profilo</label><select id="profile"><option value="eeg_ml">EEG + Machine Learning</option><option value="biomedical">Ricerca biomedica</option><option value="general_ml">Machine Learning generale</option></select>
@@ -45,9 +58,43 @@ async function api(url,opt={}){const r=await fetch(url,opt);let p;try{p=await r.
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function issue(item,moderate=false){return `<div class="issue ${moderate?'moderate':''}"><h3>${esc(item.title)}</h3><p><b>Evidenza:</b> ${esc(item.evidence_from_input)}</p><p><b>Perché conta:</b> ${esc(item.why_it_matters)}</p><p><b>Correzione:</b> ${esc(item.recommended_fix)}</p><p><b>Verifica:</b> ${esc(item.verification)}</p></div>`}
 function list(title,items){return `<h3>${title}</h3>${items?.length?`<ol>${items.map(x=>`<li>${esc(x)}</li>`).join('')}</ol>`:'<p class="empty">Nessuno.</p>'}`}
-function render(r,path){$('result').innerHTML=`<h2><span class="badge ${esc(r.verdict)}">${esc(r.verdict)}</span></h2><p>${esc(r.summary)}</p><p class="muted">Confidenza interna: ${esc(r.internal_confidence)}% · ${esc(path)}</p><h2>Problemi critici</h2>${r.critical_issues?.length?r.critical_issues.map(x=>issue(x)).join(''):'<p class="empty">Nessuno identificato.</p>'}<h2>Problemi moderati</h2>${r.moderate_issues?.length?r.moderate_issues.map(x=>issue(x,true)).join(''):'<p class="empty">Nessuno identificato.</p>'}${list('Punti solidi',r.strengths)}${list('Informazioni mancanti',r.missing_information)}${list('Prossime azioni',r.next_actions)}`}
-async function config(){const c=await api('/api/config');$('providers').innerHTML=Object.entries(c.available).map(([p,on])=>`<label><input type="checkbox" value="${p}" ${on?'checked':'disabled'}> ${p}${on?'':' (chiave assente)'}</label>`).join('')}
-async function run(){const text=$('text').value.trim();if(text.length<20){$('status').textContent='Inserisci almeno qualche riga significativa.';return}$('run').disabled=true;$('status').textContent='I modelli stanno revisionando...';const real=[...document.querySelectorAll('#providers input:checked')].map(x=>x.value);try{const j=await api('/api/jobs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,profile:$('profile').value,real_providers:real,auditor:$('auditor').checked})});timer=setInterval(async()=>{try{const s=await api('/api/jobs/'+j.job_id);$('status').textContent=s.message;if(s.status==='completed'){clearInterval(timer);render(s.result.report,s.output_path);$('run').disabled=false}else if(s.status==='error'){clearInterval(timer);throw new Error(s.error)}}catch(e){clearInterval(timer);$('status').textContent=e.message;$('run').disabled=false}},1000)}catch(e){$('status').textContent=e.message;$('run').disabled=false}}
+function render(r,path,demo=false){$('result').innerHTML=`${demo?'<div class="demo-note">Prerecorded demonstration. No external model API calls were made.</div>':''}<h2><span class="badge ${esc(r.verdict)}">${esc(r.verdict)}</span></h2><p>${esc(r.summary)}</p><p class="muted">Confidenza interna: ${esc(r.internal_confidence)}% · ${esc(path)}</p><h2>Problemi critici</h2>${r.critical_issues?.length?r.critical_issues.map(x=>issue(x)).join(''):'<p class="empty">Nessuno identificato.</p>'}<h2>Problemi moderati</h2>${r.moderate_issues?.length?r.moderate_issues.map(x=>issue(x,true)).join(''):'<p class="empty">Nessuno identificato.</p>'}${list('Punti solidi',r.strengths)}${list('Informazioni mancanti',r.missing_information)}${list('Prossime azioni',r.next_actions)}`}
+async function config(){
+const c=await api('/api/config');
+window.bioauditConfig=c;
+
+if(c.demo_mode){
+$('demoBox').classList.add('active');
+$('run').textContent='RIPRODUCI AUDIT';
+$('providers').innerHTML=Object.keys(c.available).map(p=>`<label><input type="checkbox" value="${p}" checked disabled> ${p} | recorded</label>`).join('');
+
+const select=$('demoCase');
+select.innerHTML=c.demo_cases.map(x=>`<option value="${esc(x.id)}">${esc(x.title)}</option>`).join('');
+
+function loadCase(){
+const item=c.demo_cases.find(x=>x.id===select.value);
+if(!item)return;
+$('text').value=item.text;
+$('text').readOnly=true;
+$('profile').value=item.profile;
+$('profile').disabled=true;
+$('status').textContent='Prerecorded demo ready.';
+}
+
+select.onchange=loadCase;
+loadCase();
+return;
+}
+
+$('providers').innerHTML=Object.entries(c.available).map(([p,on])=>`<label><input type="checkbox" value="${p}" ${on?'checked':'disabled'}> ${p}${on?'':' (chiave assente)'}</label>`).join('');
+}
+async function run(){const text=$('text').value.trim();if(text.length<20){$('status').textContent='Inserisci almeno qualche riga significativa.';return}$('run').disabled=true;$('status').textContent='I modelli stanno revisionando...';const real=[...document.querySelectorAll('#providers input:checked')].map(x=>x.value);try{const j=await api('/api/jobs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+text,
+profile:$('profile').value,
+real_providers:real,
+auditor:$('auditor').checked,
+demo_case:window.bioauditConfig?.demo_mode?$('demoCase').value:null
+})});timer=setInterval(async()=>{try{const s=await api('/api/jobs/'+j.job_id);$('status').textContent=s.message;if(s.status==='completed'){clearInterval(timer);render(s.result.report,s.output_path,Boolean(s.result.demo_mode));$('run').disabled=false}else if(s.status==='error'){clearInterval(timer);throw new Error(s.error)}}catch(e){clearInterval(timer);$('status').textContent=e.message;$('run').disabled=false}},1000)}catch(e){$('status').textContent=e.message;$('run').disabled=false}}
 $('run').onclick=run;config().catch(e=>$('status').textContent=e.message)
 </script></body></html>'''
 
@@ -57,6 +104,7 @@ class AuditRequest(BaseModel):
     profile: str = "eeg_ml"
     real_providers: list[str] = Field(default_factory=list)
     auditor: bool = True
+    demo_case: str | None = None
 
 
 class Jobs:
@@ -91,8 +139,23 @@ def home() -> str:
 
 @app.get("/api/config")
 def config() -> dict[str, Any]:
+    if DEMO_MODE:
+        return {
+            "demo_mode": True,
+            "demo_cases": list_demo_cases(),
+            "available": {
+                "openai": True,
+                "anthropic": True,
+                "gemini": True,
+                "groq": True,
+            },
+        }
+
     settings = Settings.from_env()
-    return {"available": {
+    return {
+        "demo_mode": False,
+        "demo_cases": [],
+        "available": {
         "openai": bool(settings.openai_api_key),
         "anthropic": bool(settings.anthropic_api_key),
         "gemini": bool(settings.gemini_api_key),
@@ -102,6 +165,34 @@ def config() -> dict[str, Any]:
 
 def worker(job_id: str, request: AuditRequest) -> None:
     try:
+        if DEMO_MODE:
+            case_id = request.demo_case or "eeg_subject_leakage"
+            jobs.update(
+                job_id,
+                status="running",
+                message="Replaying prerecorded audit",
+            )
+            time.sleep(0.8)
+
+            report = build_demo_report(case_id)
+
+            jobs.update(
+                job_id,
+                status="completed",
+                message="Prerecorded audit completed",
+                result={
+                    "report": report,
+                    "demo_mode": True,
+                    "demo_case": case_id,
+                    "demo_notice": (
+                        "Prerecorded demonstration. "
+                        "No external model API calls were made."
+                    ),
+                },
+                output_path="prerecorded-demo",
+            )
+            return
+
         settings = Settings.from_env()
         real = list(dict.fromkeys(p.lower() for p in request.real_providers))
         unknown = set(real) - set(PROVIDER_NAMES)
@@ -142,11 +233,24 @@ def get_job(job_id: str) -> dict[str, Any]:
 
 
 def main() -> None:
+    global DEMO_MODE
+
     parser = argparse.ArgumentParser(description="BioAudit web console")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8081)
+    parser.add_argument(
+        "--demo",
+        action="store_true",
+        help="Run prerecorded demonstrations without external API calls.",
+    )
     args = parser.parse_args()
-    uvicorn.run("bioaudit.web:app", host=args.host, port=args.port)
+
+    DEMO_MODE = args.demo
+
+    if DEMO_MODE:
+        uvicorn.run(app, host=args.host, port=args.port)
+    else:
+        uvicorn.run("bioaudit.web:app", host=args.host, port=args.port)
 
 
 if __name__ == "__main__":

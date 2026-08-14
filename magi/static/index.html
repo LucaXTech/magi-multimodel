@@ -18,12 +18,26 @@
 
   <main>
     <section class="control-panel panel">
-      <label for="question">QUESITO</label>
+      <div id="demoBanner" class="demo-banner hidden">
+        <strong>DEMO PREREGISTRATA</strong>
+        <span>Nessuna chiamata API | nessun dato inviato all'esterno</span>
+      </div>
+
+      <div id="demoControls" class="demo-controls hidden">
+        <div>
+          <span class="demo-kicker">DEMO CASE</span>
+          <strong>Deliberazione registrata</strong>
+        </div>
+        <select id="demoCaseSelect" aria-label="Caso dimostrativo"></select>
+        <button type="button" id="loadDemoButton">CARICA CASO</button>
+      </div>
+
+      <label id="questionLabel" for="question">QUESITO</label>
       <textarea id="question" rows="4" placeholder="Inserisci il problema da sottoporre ai tre agenti..."></textarea>
 
       <div class="control-grid">
-        <fieldset>
-          <legend>MODELLI REALI</legend>
+        <fieldset id="providersFieldset">
+          <legend id="providerLegend">MODELLI REALI</legend>
           <label class="switch-line"><input type="checkbox" value="openai" class="provider"> OpenAI <small id="openaiModel"></small></label>
           <label class="switch-line"><input type="checkbox" value="anthropic" class="provider"> Claude <small id="anthropicModel"></small></label>
           <label class="switch-line"><input type="checkbox" value="gemini" class="provider"> Gemini <small id="geminiModel"></small></label>
@@ -45,6 +59,8 @@
       </div>
       <p id="errorMessage" class="error-message"></p>
     </section>
+
+    <p id="demoNotice" class="demo-notice hidden"></p>
 
     <section class="agents-grid" id="agentsGrid">
       <article class="agent-card melchior" data-agent="MELCHIOR">

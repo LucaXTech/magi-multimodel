@@ -58,7 +58,7 @@ function resetOutput() {
     setAgentState(name, "", "IN ATTESA");
     document.querySelector(`[data-agent="${name}"] .agent-output`).innerHTML = "";
   });
-  ["auditorPanel", "verdictPanel", "scorePanel", "telemetryPanel"].forEach(id => $("#" + id).classList.add("hidden"));
+  ["auditorPanel", "verdictPanel", "scorePanel", "telemetryPanel", "demoNotice"].forEach(id => $("#" + id).classList.add("hidden"));
   $("#errorMessage").textContent = "";
 }
 
@@ -79,13 +79,65 @@ function phaseProgress(phase) {
 
 async function loadConfig() {
   config = await fetch("/api/config").then(r => r.json());
-  for (const provider of ["openai", "anthropic", "gemini", "groq"]) {
+
+  const providers = ["openai", "anthropic", "gemini", "groq"];
+
+  if (config.demo_mode) {
+    $("#demoBanner").classList.remove("hidden");
+    $("#demoControls").classList.remove("hidden");
+    $("#providerLegend").textContent = "PROVIDER REGISTRATI";
+    $("#questionLabel").textContent = "QUESITO DEMO | PREREGISTRATO";
+    $("#question").readOnly = true;
+    $("#runButton").textContent = "RIPRODUCI DELIBERAZIONE";
+    $("#judgeInfo").textContent = "JUDGE: RECORDED DEMO";
+    $("#history").innerHTML =
+      '<span class="muted">I run demo non vengono salvati nella cronologia.</span>';
+
+    for (const provider of providers) {
+      const input = document.querySelector(`.provider[value="${provider}"]`);
+      input.disabled = true;
+      input.checked = true;
+      $("#" + provider + "Model").textContent =
+        config.models[provider] || "recorded-demo";
+    }
+
+    const cases = config.demo_cases || [];
+    if (!cases.length) {
+      throw new Error("Nessun caso demo disponibile.");
+    }
+
+    const select = $("#demoCaseSelect");
+    select.innerHTML = cases.map(item =>
+      `<option value="${escapeHtml(item.id)}">${escapeHtml(item.title)}</option>`
+    ).join("");
+
+    const loadDemoCase = () => {
+      const selected = cases.find(item => item.id === select.value);
+      if (selected) {
+        $("#question").value = selected.question;
+        resetOutput();
+      }
+    };
+
+    select.addEventListener("change", loadDemoCase);
+    $("#loadDemoButton").addEventListener("click", loadDemoCase);
+
+    loadDemoCase();
+    setSystem("", "DEMO READY");
+    return;
+  }
+
+  for (const provider of providers) {
     const input = document.querySelector(`.provider[value="${provider}"]`);
     input.disabled = !config.available[provider];
-    input.checked = config.available[provider] && (provider === "openai" || provider === "gemini");
-    $("#" + provider + "Model").textContent = config.models[provider] || "";
+    input.checked = config.available[provider] &&
+      (provider === "openai" || provider === "gemini");
+    $("#" + provider + "Model").textContent =
+      config.models[provider] || "";
   }
-  $("#judgeInfo").textContent = `JUDGE: ${config.judge_provider.toUpperCase()} · reale solo se selezionato`;
+
+  $("#judgeInfo").textContent =
+    `JUDGE: ${config.judge_provider.toUpperCase()} ? reale solo se selezionato`;
 }
 
 async function submitRun() {
@@ -109,7 +161,14 @@ async function submitRun() {
     const response = await fetch("/api/jobs", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({question, real_providers: realProviders, critique, score, auditor})
+      body: JSON.stringify({
+        question,
+        real_providers: realProviders,
+        critique,
+        score,
+        auditor,
+        demo_case: config?.demo_mode ? $("#demoCaseSelect").value : null
+      })
     });
     if (!response.ok) throw new Error(await response.text());
     activeJob = (await response.json()).job_id;
@@ -168,6 +227,13 @@ function resultMeta(result) {
 }
 
 function renderRun(run) {
+  if (run.demo_mode) {
+    $("#demoNotice").classList.remove("hidden");
+    $("#demoNotice").textContent =
+      run.demo_notice ||
+      "Prerecorded demonstration. No external model API calls were made.";
+  }
+
   for (const agent of run.agents || []) {
     const card = document.querySelector(`[data-agent="${agent.agent}"]`);
     const initial = agent.initial || {};
@@ -241,14 +307,28 @@ function renderTelemetry(run) {
   const errors = calls.filter(c => c.error).length;
   const incomplete = calls.filter(c => c.status === "incomplete" || c.incomplete_reason).length;
   $("#telemetryPanel").classList.remove("hidden");
+  const demo = Boolean(run.demo_mode);
   $("#telemetry").innerHTML = [
-    [calls.length, "CHIAMATE"], [input, "TOKEN INPUT"], [output, "TOKEN OUTPUT"],
-    [`${Number(run.wall_time_seconds || 0).toFixed(1)}s`, "TEMPO REALE"],
+    [calls.length, demo ? "RECORDED CALLS" : "CHIAMATE"],
+    [input, "TOKEN INPUT"],
+    [output, "TOKEN OUTPUT"],
+    [
+      `${Number(run.wall_time_seconds || 0).toFixed(1)}s`,
+      demo ? "RECORDED LATENCY" : "TEMPO REALE"
+    ],
     [`${errors}/${incomplete}`, "ERRORI/INCOMPLETE"]
-  ].map(([value,label]) => `<div><strong>${escapeHtml(value)}</strong><span>${label}</span></div>`).join("");
+  ].map(([value,label]) =>
+    `<div><strong>${escapeHtml(value)}</strong><span>${label}</span></div>`
+  ).join("");
 }
 
 async function loadHistory() {
+  if (config?.demo_mode) {
+    $("#history").innerHTML =
+      '<span class="muted">I run demo non vengono salvati nella cronologia.</span>';
+    return;
+  }
+
   try {
     const runs = await fetch("/api/runs?limit=10").then(r => r.json());
     if (!runs.length) return;
