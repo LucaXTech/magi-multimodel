@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="it">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -8,36 +8,68 @@
 </head>
 <body>
   <div class="scanlines"></div>
+
   <header class="topbar">
     <div>
       <div class="eyebrow">DECISION INTELLIGENCE SYSTEM</div>
       <h1>MAGI <span>05</span></h1>
     </div>
-    <div id="systemStatus" class="system-status"><i></i> STANDBY</div>
+
+    <div class="topbar-actions">
+      <label class="language-control">
+        <span class="sr-only" data-i18n="common.language">Language</span>
+        <select
+          id="languageSelect"
+          aria-label="Language"
+          data-i18n-aria-label="common.language"
+        >
+          <option value="en">EN</option>
+          <option value="it">IT</option>
+        </select>
+      </label>
+
+      <div id="systemStatus" class="system-status">
+        <i></i>
+        <span data-i18n="magi.system.standby">STANDBY</span>
+      </div>
+    </div>
   </header>
 
   <main>
     <section class="control-panel panel">
       <div id="demoBanner" class="demo-banner hidden">
-        <strong>DEMO PREREGISTRATA</strong>
-        <span>Nessuna chiamata API | nessun dato inviato all'esterno</span>
+        <strong data-i18n="magi.demo.title">PRERECORDED DEMO</strong>
+        <span data-i18n="magi.demo.subtitle">No API calls | no data sent externally</span>
       </div>
 
       <div id="demoControls" class="demo-controls hidden">
         <div>
-          <span class="demo-kicker">DEMO CASE</span>
-          <strong>Deliberazione registrata</strong>
+          <span class="demo-kicker" data-i18n="magi.demo.case">DEMO CASE</span>
+          <strong data-i18n="magi.demo.recorded_deliberation">Static demonstration</strong>
         </div>
-        <select id="demoCaseSelect" aria-label="Caso dimostrativo"></select>
-        <button type="button" id="loadDemoButton">CARICA CASO</button>
+        <select
+          id="demoCaseSelect"
+          aria-label="Demo case"
+          data-i18n-aria-label="magi.demo.case"
+        ></select>
+        <button
+          type="button"
+          id="loadDemoButton"
+          data-i18n="magi.demo.load_case"
+        >LOAD CASE</button>
       </div>
 
-      <label id="questionLabel" for="question">QUESITO</label>
-      <textarea id="question" rows="4" placeholder="Inserisci il problema da sottoporre ai tre agenti..."></textarea>
+      <label id="questionLabel" for="question" data-i18n="magi.question.label">QUESTION</label>
+      <textarea
+        id="question"
+        rows="4"
+        placeholder="Enter the problem to submit to the three agents..."
+        data-i18n-placeholder="magi.question.placeholder"
+      ></textarea>
 
       <div class="control-grid">
         <fieldset id="providersFieldset">
-          <legend id="providerLegend">MODELLI REALI</legend>
+          <legend id="providerLegend" data-i18n="magi.providers.legend">LIVE PROVIDERS</legend>
           <label class="switch-line"><input type="checkbox" value="openai" class="provider"> OpenAI <small id="openaiModel"></small></label>
           <label class="switch-line"><input type="checkbox" value="anthropic" class="provider"> Claude <small id="anthropicModel"></small></label>
           <label class="switch-line"><input type="checkbox" value="gemini" class="provider"> Gemini <small id="geminiModel"></small></label>
@@ -45,18 +77,31 @@
         </fieldset>
 
         <fieldset>
-          <legend>PROTOCOLLO</legend>
-          <label class="switch-line"><input type="radio" name="mode" value="quick" checked> Rapido · 4 chiamate</label>
-          <label class="switch-line"><input type="radio" name="mode" value="deep"> Profondo · 7 chiamate</label>
-          <label class="switch-line"><input type="checkbox" id="auditor"> Auditor esterno Groq +1</label>
-          <label class="switch-line"><input type="checkbox" id="score" checked> Scorecard interna +1</label>
+          <legend data-i18n="magi.protocol.legend">PROTOCOL</legend>
+          <label class="switch-line">
+            <input type="radio" name="mode" value="quick" checked>
+            <span data-i18n="magi.protocol.quick">Quick | 4 calls</span>
+          </label>
+          <label class="switch-line">
+            <input type="radio" name="mode" value="deep">
+            <span data-i18n="magi.protocol.deep">Deep | 7 calls</span>
+          </label>
+          <label class="switch-line">
+            <input type="checkbox" id="auditor">
+            <span data-i18n="magi.protocol.auditor">External Groq auditor +1</span>
+          </label>
+          <label class="switch-line">
+            <input type="checkbox" id="score" checked>
+            <span data-i18n="magi.protocol.score">Internal scorecard +1</span>
+          </label>
         </fieldset>
       </div>
 
       <div class="action-row">
-        <div id="judgeInfo" class="judge-info">JUDGE: —</div>
-        <button id="runButton">AVVIA DELIBERAZIONE</button>
+        <div id="judgeInfo" class="judge-info">JUDGE: ?</div>
+        <button id="runButton" data-i18n="magi.run.start">START DELIBERATION</button>
       </div>
+
       <p id="errorMessage" class="error-message"></p>
     </section>
 
@@ -64,62 +109,116 @@
 
     <section class="agents-grid" id="agentsGrid">
       <article class="agent-card melchior" data-agent="MELCHIOR">
-        <div class="agent-head"><span class="lamp"></span><div><h2>MELCHIOR</h2><p>Analista tecnico</p></div></div>
-        <div class="agent-state">IN ATTESA</div>
+        <div class="agent-head">
+          <span class="lamp"></span>
+          <div>
+            <h2>MELCHIOR</h2>
+            <p data-i18n="magi.agent.melchior.role">Technical analyst</p>
+          </div>
+        </div>
+        <div class="agent-state" data-i18n="magi.agent.waiting">WAITING</div>
         <div class="agent-output"></div>
       </article>
+
       <article class="agent-card balthasar" data-agent="BALTHASAR">
-        <div class="agent-head"><span class="lamp"></span><div><h2>BALTHASAR</h2><p>Revisore scientifico</p></div></div>
-        <div class="agent-state">IN ATTESA</div>
+        <div class="agent-head">
+          <span class="lamp"></span>
+          <div>
+            <h2>BALTHASAR</h2>
+            <p data-i18n="magi.agent.balthasar.role">Scientific reviewer</p>
+          </div>
+        </div>
+        <div class="agent-state" data-i18n="magi.agent.waiting">WAITING</div>
         <div class="agent-output"></div>
       </article>
+
       <article class="agent-card casper" data-agent="CASPER">
-        <div class="agent-head"><span class="lamp"></span><div><h2>CASPER</h2><p>Valutatore pragmatico</p></div></div>
-        <div class="agent-state">IN ATTESA</div>
+        <div class="agent-head">
+          <span class="lamp"></span>
+          <div>
+            <h2>CASPER</h2>
+            <p data-i18n="magi.agent.casper.role">Pragmatic evaluator</p>
+          </div>
+        </div>
+        <div class="agent-state" data-i18n="magi.agent.waiting">WAITING</div>
         <div class="agent-output"></div>
       </article>
     </section>
 
     <section id="progressPanel" class="panel progress-panel hidden">
-      <div class="progress-title"><span id="progressMessage">Avvio</span><span id="elapsed">0.0 s</span></div>
+      <div class="progress-title">
+        <span id="progressMessage" data-i18n="magi.progress.start">Starting</span>
+        <span id="elapsed">0.0 s</span>
+      </div>
+
       <div class="progress-track"><div id="progressBar"></div></div>
+
       <div id="phaseSteps" class="phase-steps">
-        <span data-phase="initial">ANALISI</span><span data-phase="critique">CRITICA</span><span data-phase="auditor">AUDIT</span><span data-phase="judge">GIUDIZIO</span><span data-phase="score">SCORE</span>
+        <span data-phase="initial" data-i18n="magi.phase.analysis">ANALYSIS</span>
+        <span data-phase="critique" data-i18n="magi.phase.critique">CRITIQUE</span>
+        <span data-phase="auditor" data-i18n="magi.phase.audit">AUDIT</span>
+        <span data-phase="judge" data-i18n="magi.phase.judgment">JUDGMENT</span>
+        <span data-phase="score" data-i18n="magi.phase.score">SCORE</span>
       </div>
     </section>
 
     <section id="auditorPanel" class="panel verdict-panel hidden">
-      <div class="section-label">AUDIT ESTERNO <small>modello non votante</small></div>
+      <div class="section-label">
+        <span data-i18n="magi.auditor.section">EXTERNAL AUDIT</span>
+        <small data-i18n="magi.auditor.note">non-voting model</small>
+      </div>
       <div id="auditorText" class="rich-text"></div>
     </section>
 
     <section id="verdictPanel" class="panel verdict-panel hidden">
-      <div class="section-label">VERDETTO MAGI</div>
+      <div class="section-label">
+        <span data-i18n="magi.verdict.section">MAGI VERDICT</span>
+      </div>
       <div id="verdictText" class="rich-text"></div>
     </section>
 
     <section id="scorePanel" class="panel score-panel hidden">
-      <div class="section-label">PESO DEI CONTRIBUTI <small>stima interna, non ground truth</small></div>
-      <div class="score-overview">
-        <div><strong id="globalConfidence">—</strong><span>CONFIDENZA</span></div>
-        <div><strong id="consensusLevel">—</strong><span>CONSENSO</span></div>
+      <div class="section-label">
+        <span data-i18n="magi.score.section">CONTRIBUTION WEIGHTS</span>
+        <small data-i18n="magi.score.note">internal estimate, not ground truth</small>
       </div>
+
+      <div class="score-overview">
+        <div>
+          <strong id="globalConfidence">?</strong>
+          <span data-i18n="magi.score.confidence">CONFIDENCE</span>
+        </div>
+        <div>
+          <strong id="consensusLevel">?</strong>
+          <span data-i18n="magi.score.consensus">CONSENSUS</span>
+        </div>
+      </div>
+
       <div id="scoreCards" class="score-cards"></div>
       <div id="scoreNotes" class="score-notes"></div>
     </section>
 
     <section id="telemetryPanel" class="panel telemetry-panel hidden">
-      <div class="section-label">TELEMETRIA</div>
+      <div class="section-label">
+        <span data-i18n="magi.telemetry.section">TELEMETRY</span>
+      </div>
       <div id="telemetry" class="telemetry-grid"></div>
     </section>
 
     <section class="panel history-panel">
-      <div class="section-label">ARCHIVIO DELIBERAZIONI</div>
-      <div id="history" class="history-list"><span class="muted">Nessun run disponibile.</span></div>
+      <div class="section-label">
+        <span data-i18n="magi.history.section">DELIBERATION HISTORY</span>
+      </div>
+      <div id="history" class="history-list">
+        <span class="muted" data-i18n="magi.history.empty">No runs available.</span>
+      </div>
     </section>
   </main>
 
-  <footer>MAGI Pi · prototipo sperimentale · non usare come sistema clinico validato</footer>
+  <footer data-i18n="magi.footer">
+    MAGI Pi | experimental prototype | not a validated clinical system
+  </footer>
+
   <script src="/app.js"></script>
 </body>
 </html>

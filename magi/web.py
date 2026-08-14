@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 
 from .config import Settings
 from .demo import build_demo_run, list_demo_cases
+from .i18n import frontend_payload
 from .orchestrator import MagiOrchestrator
 from .providers import PROVIDER_NAMES, build_providers
 
@@ -50,7 +51,7 @@ class JobStore:
                 "job_id": job_id,
                 "status": "queued",
                 "phase": "queued",
-                "message": "Run in coda",
+                "message": "Run queued",
                 "created_at": now,
                 "updated_at": now,
                 "request": request.model_dump(),
@@ -70,17 +71,17 @@ class JobStore:
 
     def event(self, job_id: str, event: str, payload: dict[str, Any]) -> None:
         phase_messages = {
-            "initial_started": ("initial", "I tre agenti stanno analizzando"),
-            "initial_completed": ("initial_done", "Analisi iniziali completate"),
-            "critique_started": ("critique", "Critica incrociata in corso"),
-            "critique_completed": ("critique_done", "Critiche completate"),
-            "auditor_started": ("auditor", "Audit esterno indipendente"),
-            "auditor_completed": ("auditor_done", "Audit esterno completato"),
-            "judge_started": ("judge", "Il giudice sta deliberando"),
-            "judge_completed": ("judge_done", "Verdetto completato"),
-            "score_started": ("score", "Valutazione dei contributi"),
-            "score_completed": ("score_done", "Scorecard completata"),
-            "saved": ("saved", "Run salvato"),
+            "initial_started": ("initial", "Three agents are analyzing"),
+            "initial_completed": ("initial_done", "Initial analyses completed"),
+            "critique_started": ("critique", "Cross-review in progress"),
+            "critique_completed": ("critique_done", "Cross-reviews completed"),
+            "auditor_started": ("auditor", "Independent external audit"),
+            "auditor_completed": ("auditor_done", "External audit completed"),
+            "judge_started": ("judge", "Judge is deliberating"),
+            "judge_completed": ("judge_done", "Verdict completed"),
+            "score_started": ("score", "Evaluating contributions"),
+            "score_completed": ("score_done", "Scorecard completed"),
+            "saved": ("saved", "Run saved"),
         }
         phase, message = phase_messages.get(event, (event, event))
         with self._lock:
@@ -115,14 +116,14 @@ def _run_worker(job_id: str, request: RunRequest) -> None:
         settings = Settings.from_env()
         unknown = set(request.real_providers).difference(PROVIDER_NAMES)
         if unknown:
-            raise ValueError("Provider non validi: " + ", ".join(sorted(unknown)))
+            raise ValueError("Invalid providers: " + ", ".join(sorted(unknown)))
         providers = build_providers(
             settings,
             mock=False,
             real_providers=request.real_providers,
         )
         orchestrator = MagiOrchestrator(settings, providers)
-        jobs.update(job_id, status="running", phase="starting", message="Avvio MAGI")
+        jobs.update(job_id, status="running", phase="starting", message="Starting MAGI")
         run, path = orchestrator.run(
             request.question,
             critique=request.critique,
@@ -136,7 +137,7 @@ def _run_worker(job_id: str, request: RunRequest) -> None:
             job_id,
             status="completed",
             phase="completed",
-            message="Deliberazione completata",
+            message="Deliberation completed",
             result=run.to_dict(),
             output_path=path,
         )
@@ -145,7 +146,7 @@ def _run_worker(job_id: str, request: RunRequest) -> None:
             job_id,
             status="error",
             phase="error",
-            message="Errore durante il run",
+            message="Run failed",
             error=f"{type(exc).__name__}: {exc}",
         )
 
@@ -229,6 +230,11 @@ def javascript() -> FileResponse:
     return FileResponse(STATIC_DIR / "app.js", media_type="application/javascript")
 
 
+@app.get("/api/i18n")
+def i18n_config() -> dict[str, object]:
+    return frontend_payload()
+
+
 @app.get("/api/config")
 def config() -> dict[str, Any]:
     if DEMO_MODE:
@@ -290,7 +296,7 @@ def create_job(request: RunRequest) -> dict[str, str]:
 def get_job(job_id: str) -> dict[str, Any]:
     job = jobs.get(job_id)
     if job is None:
-        raise HTTPException(status_code=404, detail="Job non trovato")
+        raise HTTPException(status_code=404, detail="Job not found")
     return job
 
 
@@ -333,14 +339,14 @@ def list_runs(limit: int = 12) -> list[dict[str, Any]]:
 @app.get("/api/runs/{run_id}")
 def get_run(run_id: str) -> dict[str, Any]:
     if not RUN_ID_PATTERN.fullmatch(run_id):
-        raise HTTPException(status_code=400, detail="Run ID non valido")
+        raise HTTPException(status_code=400, detail="Invalid run ID")
     path = Settings.from_env().runs_dir / f"{run_id}.json"
     if not path.exists():
-        raise HTTPException(status_code=404, detail="Run non trovato")
+        raise HTTPException(status_code=404, detail="Run not found")
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        raise HTTPException(status_code=500, detail=f"Run illeggibile: {exc}") from exc
+        raise HTTPException(status_code=500, detail=f"Run could not be read: {exc}") from exc
 
 
 def main() -> None:
