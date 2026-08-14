@@ -220,10 +220,15 @@ async function pollJob() {
 }
 
 function resultMeta(result) {
+  if (result.demo_recording) {
+    return `${result.provider} / STATIC FIXTURE`;
+  }
+
   const tokens = (result.input_tokens != null || result.output_tokens != null)
-    ? ` · ${result.input_tokens || 0}/${result.output_tokens || 0} tok`
+    ? ` | ${result.input_tokens || 0}/${result.output_tokens || 0} tok`
     : "";
-  return `${result.provider}/${result.model} · ${Number(result.latency_seconds || 0).toFixed(2)} s${tokens}`;
+
+  return `${result.provider}/${result.model} | ${Number(result.latency_seconds || 0).toFixed(2)} s${tokens}`;
 }
 
 function renderRun(run) {
@@ -295,29 +300,54 @@ function renderScorecard(scorecard) {
 
 function renderTelemetry(run) {
   const calls = [];
+
   for (const agent of run.agents || []) {
     if (agent.initial) calls.push(agent.initial);
     if (agent.critique) calls.push(agent.critique);
   }
+
   if (run.auditor) calls.push(run.auditor);
   if (run.verdict) calls.push(run.verdict);
   if (run.scorecard?.evaluator) calls.push(run.scorecard.evaluator);
-  const input = calls.reduce((a,c) => a + Number(c.input_tokens || 0), 0);
-  const output = calls.reduce((a,c) => a + Number(c.output_tokens || 0), 0);
+
   const errors = calls.filter(c => c.error).length;
-  const incomplete = calls.filter(c => c.status === "incomplete" || c.incomplete_reason).length;
+  const incomplete = calls.filter(
+    c => c.status === "incomplete" || c.incomplete_reason
+  ).length;
+
   $("#telemetryPanel").classList.remove("hidden");
-  const demo = Boolean(run.demo_mode);
+
+  if (run.demo_mode) {
+    $("#telemetry").innerHTML = [
+      [calls.length, "DEMO STEPS"],
+      ["N/A", "TOKEN INPUT"],
+      ["N/A", "TOKEN OUTPUT"],
+      ["N/A", "LATENCY"],
+      [`${errors}/${incomplete}`, "ERRORS/INCOMPLETE"]
+    ].map(([value, label]) =>
+      `<div><strong>${escapeHtml(value)}</strong><span>${label}</span></div>`
+    ).join("");
+
+    return;
+  }
+
+  const input = calls.reduce(
+    (total, call) => total + Number(call.input_tokens || 0),
+    0
+  );
+
+  const output = calls.reduce(
+    (total, call) => total + Number(call.output_tokens || 0),
+    0
+  );
+
   $("#telemetry").innerHTML = [
-    [calls.length, demo ? "RECORDED CALLS" : "CHIAMATE"],
+    [calls.length, "CHIAMATE"],
     [input, "TOKEN INPUT"],
     [output, "TOKEN OUTPUT"],
-    [
-      `${Number(run.wall_time_seconds || 0).toFixed(1)}s`,
-      demo ? "RECORDED LATENCY" : "TEMPO REALE"
-    ],
+    [`${Number(run.wall_time_seconds || 0).toFixed(1)}s`, "TEMPO REALE"],
     [`${errors}/${incomplete}`, "ERRORI/INCOMPLETE"]
-  ].map(([value,label]) =>
+  ].map(([value, label]) =>
     `<div><strong>${escapeHtml(value)}</strong><span>${label}</span></div>`
   ).join("");
 }
