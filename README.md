@@ -51,7 +51,7 @@ Windows PowerShell:
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
+python -m pip install -e .
 ```
 
 ### 2. Zero-key demo — recommended first run
@@ -63,7 +63,7 @@ Demo mode uses deterministic static demonstration fixtures and does not persist 
 MAGI:
 
 ```powershell
-python -m magi.web --demo
+magi-web --demo
 ```
 
 Open `http://127.0.0.1:8080`.
@@ -71,7 +71,7 @@ Open `http://127.0.0.1:8080`.
 BioAudit:
 
 ```powershell
-python -m bioaudit.web --demo
+bioaudit-web --demo
 ```
 
 Open `http://127.0.0.1:8081`.
@@ -85,13 +85,13 @@ Copy `.env.example` to `.env` and add only the providers you intend to use.
 MAGI:
 
 ```powershell
-python -m magi.web
+magi-web
 ```
 
 BioAudit:
 
 ```powershell
-python -m bioaudit.web
+bioaudit-web
 ```
 
 ### 4. Free mock smoke test
@@ -107,10 +107,20 @@ python -m bioaudit.cli --file bioaudit\examples\eeg_pipeline.txt --mock
 These commands do not call external APIs:
 
 ```powershell
-python -m benchmark.validate_objective
+magi-benchmark-validate
 python -m benchmark.preflight --split dev --limit 12 --seed 20260806
 python -m benchmark.run_objective --mock --split dev --limit 6
 python -m pytest -q
+```
+
+### Module execution compatibility
+
+The traditional module execution paths remain supported during the packaging migration:
+
+```powershell
+python -m magi.web --demo
+python -m bioaudit.web --demo
+python -m benchmark.validate_objective
 ```
 
 ## Reliable benchmark reporting
