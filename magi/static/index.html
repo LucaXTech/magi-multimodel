@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>MAGI Console</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="scanlines"></div>
+  <header class="topbar">
+    <div>
+      <div class="eyebrow">DECISION INTELLIGENCE SYSTEM</div>
+      <h1>MAGI <span>05</span></h1>
+    </div>
+    <div id="systemStatus" class="system-status"><i></i> STANDBY</div>
+  </header>
+
+  <main>
+    <section class="control-panel panel">
+      <label for="question">QUESITO</label>
+      <textarea id="question" rows="4" placeholder="Inserisci il problema da sottoporre ai tre agenti..."></textarea>
+
+      <div class="control-grid">
+        <fieldset>
+          <legend>MODELLI REALI</legend>
+          <label class="switch-line"><input type="checkbox" value="openai" class="provider"> OpenAI <small id="openaiModel"></small></label>
+          <label class="switch-line"><input type="checkbox" value="anthropic" class="provider"> Claude <small id="anthropicModel"></small></label>
+          <label class="switch-line"><input type="checkbox" value="gemini" class="provider"> Gemini <small id="geminiModel"></small></label>
+          <label class="switch-line"><input type="checkbox" value="groq" class="provider"> Groq/Llama <small id="groqModel"></small></label>
+        </fieldset>
+
+        <fieldset>
+          <legend>PROTOCOLLO</legend>
+          <label class="switch-line"><input type="radio" name="mode" value="quick" checked> Rapido · 4 chiamate</label>
+          <label class="switch-line"><input type="radio" name="mode" value="deep"> Profondo · 7 chiamate</label>
+          <label class="switch-line"><input type="checkbox" id="auditor"> Auditor esterno Groq +1</label>
+          <label class="switch-line"><input type="checkbox" id="score" checked> Scorecard interna +1</label>
+        </fieldset>
+      </div>
+
+      <div class="action-row">
+        <div id="judgeInfo" class="judge-info">JUDGE: —</div>
+        <button id="runButton">AVVIA DELIBERAZIONE</button>
+      </div>
+      <p id="errorMessage" class="error-message"></p>
+    </section>
+
+    <section class="agents-grid" id="agentsGrid">
+      <article class="agent-card melchior" data-agent="MELCHIOR">
+        <div class="agent-head"><span class="lamp"></span><div><h2>MELCHIOR</h2><p>Analista tecnico</p></div></div>
+        <div class="agent-state">IN ATTESA</div>
+        <div class="agent-output"></div>
+      </article>
+      <article class="agent-card balthasar" data-agent="BALTHASAR">
+        <div class="agent-head"><span class="lamp"></span><div><h2>BALTHASAR</h2><p>Revisore scientifico</p></div></div>
+        <div class="agent-state">IN ATTESA</div>
+        <div class="agent-output"></div>
+      </article>
+      <article class="agent-card casper" data-agent="CASPER">
+        <div class="agent-head"><span class="lamp"></span><div><h2>CASPER</h2><p>Valutatore pragmatico</p></div></div>
+        <div class="agent-state">IN ATTESA</div>
+        <div class="agent-output"></div>
+      </article>
+    </section>
+
+    <section id="progressPanel" class="panel progress-panel hidden">
+      <div class="progress-title"><span id="progressMessage">Avvio</span><span id="elapsed">0.0 s</span></div>
+      <div class="progress-track"><div id="progressBar"></div></div>
+      <div id="phaseSteps" class="phase-steps">
+        <span data-phase="initial">ANALISI</span><span data-phase="critique">CRITICA</span><span data-phase="auditor">AUDIT</span><span data-phase="judge">GIUDIZIO</span><span data-phase="score">SCORE</span>
+      </div>
+    </section>
+
+    <section id="auditorPanel" class="panel verdict-panel hidden">
+      <div class="section-label">AUDIT ESTERNO <small>modello non votante</small></div>
+      <div id="auditorText" class="rich-text"></div>
+    </section>
+
+    <section id="verdictPanel" class="panel verdict-panel hidden">
+      <div class="section-label">VERDETTO MAGI</div>
+      <div id="verdictText" class="rich-text"></div>
+    </section>
+
+    <section id="scorePanel" class="panel score-panel hidden">
+      <div class="section-label">PESO DEI CONTRIBUTI <small>stima interna, non ground truth</small></div>
+      <div class="score-overview">
+        <div><strong id="globalConfidence">—</strong><span>CONFIDENZA</span></div>
+        <div><strong id="consensusLevel">—</strong><span>CONSENSO</span></div>
+      </div>
+      <div id="scoreCards" class="score-cards"></div>
+      <div id="scoreNotes" class="score-notes"></div>
+    </section>
+
+    <section id="telemetryPanel" class="panel telemetry-panel hidden">
+      <div class="section-label">TELEMETRIA</div>
+      <div id="telemetry" class="telemetry-grid"></div>
+    </section>
+
+    <section class="panel history-panel">
+      <div class="section-label">ARCHIVIO DELIBERAZIONI</div>
+      <div id="history" class="history-list"><span class="muted">Nessun run disponibile.</span></div>
+    </section>
+  </main>
+
+  <footer>MAGI Pi · prototipo sperimentale · non usare come sistema clinico validato</footer>
+  <script src="/app.js"></script>
+</body>
+</html>

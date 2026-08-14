@@ -1,0 +1,6 @@
+{
+  "openai": {"input_per_million": 0.0, "output_per_million": 0.0},
+  "anthropic": {"input_per_million": 0.0, "output_per_million": 0.0},
+  "gemini": {"input_per_million": 0.0, "output_per_million": 0.0},
+  "groq": {"input_per_million": 0.0, "output_per_million": 0.0}
+}

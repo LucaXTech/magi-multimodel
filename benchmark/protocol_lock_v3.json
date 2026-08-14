@@ -1,0 +1,38 @@
+{
+  "protocol_version": "objective_v3",
+  "dataset_sha256": "6d53e2af6bdc35a4f8f9a14db7fe266cc67c187035c508ba46b2ae31698147a5",
+  "test_case_ids": [
+    "test_augmentation_threshold_leak",
+    "test_auprc_imbalance",
+    "test_baseline_poststimulus",
+    "test_calibration_practices",
+    "test_cluster_effective_n",
+    "test_grouped_nested_sessions",
+    "test_macro_f1_rare_class",
+    "test_mcnemar_exact",
+    "test_mnar_missingness",
+    "test_multiple_testing_story",
+    "test_nested_fit_count",
+    "test_new_hospital_split",
+    "test_noninferiority_margin",
+    "test_npv_prevalence",
+    "test_online_causal_filter",
+    "test_overlap_fraction",
+    "test_perfect_batch_confound",
+    "test_repeated_measures_methods",
+    "test_resampling_checks",
+    "test_selectkbest_before_cv",
+    "test_standard_error_mean",
+    "test_temporal_code_audit",
+    "test_threshold_reuse",
+    "test_welch_resolution"
+  ],
+  "primary_endpoint": "exact_accuracy",
+  "secondary_endpoints": [
+    "critical_error_rate",
+    "brier_score",
+    "latency_seconds",
+    "estimated_cost_per_correct"
+  ],
+  "selection_rule": "test set fixed before real test runs"
+}

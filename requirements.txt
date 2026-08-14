@@ -1,0 +1,8 @@
+openai
+anthropic
+google-genai>=2.3.0
+python-dotenv
+fastapi
+uvicorn
+
+groq>=0.31.0

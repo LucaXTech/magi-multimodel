@@ -1,0 +1,29 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Secrets / local configuration
+.env
+benchmark/pricing.local.json
+
+# Runtime outputs
+runs/
+benchmark_results/
+objective_results/
+objective_results_v3/
+bioaudit_results/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs / archives
+*.log
+*.zip
