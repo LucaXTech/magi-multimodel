@@ -54,31 +54,55 @@ Windows PowerShell:
 python -m pip install -r requirements.txt
 ```
 
-Copy `.env.example` to `.env` and add only the providers you want to use.
+### 2. Zero-key demo — recommended first run
 
-### 2. MAGI console
+The fastest way to inspect MAGI and BioAudit requires no `.env`, API keys, or external model calls.
+
+Demo mode uses deterministic static demonstration fixtures and does not persist runs to the normal history.
+
+MAGI:
+
+```powershell
+python -m magi.web --demo
+```
+
+Open `http://127.0.0.1:8080`.
+
+BioAudit:
+
+```powershell
+python -m bioaudit.web --demo
+```
+
+Open `http://127.0.0.1:8081`.
+
+Both interfaces are English-first and include an `EN / IT` language selector. The selected language is stored locally in the browser.
+
+### 3. Live providers — optional
+
+Copy `.env.example` to `.env` and add only the providers you intend to use.
+
+MAGI:
 
 ```powershell
 python -m magi.web
 ```
 
-Open `http://127.0.0.1:8080`.
-
-### 3. BioAudit
+BioAudit:
 
 ```powershell
 python -m bioaudit.web
 ```
 
-Open `http://127.0.0.1:8081`.
+### 4. Free mock smoke test
 
-Free mock smoke test:
+This command does not require external model calls:
 
 ```powershell
 python -m bioaudit.cli --file bioaudit\examples\eeg_pipeline.txt --mock
 ```
 
-### 4. Benchmark integrity checks
+### 5. Benchmark integrity checks
 
 These commands do not call external APIs:
 

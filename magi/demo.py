@@ -40,9 +40,6 @@ def _call(
     provider: str,
     model: str,
     text: str,
-    latency: float,
-    input_tokens: int,
-    output_tokens: int,
 ) -> dict[str, Any]:
     return {
         "provider": provider,
@@ -78,9 +75,6 @@ The reported 94% accuracy is not a reliable estimate of subject-level generaliza
 Split the dataset by participant before creating the final training and test partitions. For model selection, use grouped cross-validation such as leave-one-subject-out or GroupKFold.
 
 The performance should then be recomputed on participants that were never observed during training.""",
-        1.31,
-        742,
-        184,
     )
 
     balthasar = _call(
@@ -95,9 +89,6 @@ The experimental unit is the **participant**, not the individual 2-second segmen
 A valid evaluation should preserve participant independence and should report uncertainty across subjects, not only across windows.
 
 Until subject-independent validation is performed, the 94% result should not be interpreted as evidence that the classifier generalizes to new participants.""",
-        1.48,
-        791,
-        201,
     )
 
     casper = _call(
@@ -115,9 +106,6 @@ The immediate action is inexpensive:
 4. compare the new result with the original 94%.
 
 A large performance drop after grouped validation would be evidence that the original estimate was optimistic.""",
-        1.12,
-        701,
-        176,
     )
 
     critique_text = """The other reviewers correctly identify subject leakage. I would additionally verify whether normalization, feature selection, artifact rejection thresholds, or hyperparameter tuning were computed using data from held-out participants."""
@@ -130,9 +118,6 @@ A large performance drop after grouped validation would be evidence that the ori
                 "openai",
                 "recorded-demo",
                 critique_text,
-                0.61,
-                318,
-                71,
             ) if critique else None,
         },
         {
@@ -142,9 +127,6 @@ A large performance drop after grouped validation would be evidence that the ori
                 "anthropic",
                 "recorded-demo",
                 critique_text,
-                0.66,
-                329,
-                73,
             ) if critique else None,
         },
         {
@@ -154,9 +136,6 @@ A large performance drop after grouped validation would be evidence that the ori
                 "gemini",
                 "recorded-demo",
                 critique_text,
-                0.54,
-                301,
-                69,
             ) if critique else None,
         },
     ]
@@ -178,9 +157,6 @@ Additional checks required:
 - report participant counts in every split;
 - ensure repeated windows from one recording cannot cross partitions;
 - distinguish window-level accuracy from subject-level generalization.""",
-            0.83,
-            522,
-            132,
         )
 
     verdict = _call(
@@ -201,9 +177,6 @@ Use participant-grouped splitting before model evaluation and keep every data-de
 Repeat the experiment with LOSO or another participant-grouped protocol and report performance with uncertainty across held-out participants.
 
 **Decision:** the scientific conclusion should be revised before the result is used as evidence of model generalization.""",
-        0.94,
-        611,
-        145,
     )
 
     scorecard = None
@@ -254,9 +227,6 @@ Repeat the experiment with LOSO or another participant-grouped protocol and repo
                 "openai",
                 "recorded-demo",
                 "Recorded scorecard evaluation.",
-                0.42,
-                260,
-                54,
             ),
         }
 

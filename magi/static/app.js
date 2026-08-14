@@ -5,6 +5,138 @@ let pollTimer = null;
 let startedAt = null;
 let config = null;
 
+let i18n = null;
+let language = "en";
+let lastRenderedRun = null;
+let lastJobPhase = null;
+let currentSystem = {
+  status: "",
+  key: "magi.system.standby",
+  values: {}
+};
+
+const PHASE_KEYS = {
+  queued: "magi.status.queued",
+  starting: "magi.status.starting",
+  initial: "magi.status.initial",
+  initial_done: "magi.status.initial_done",
+  critique: "magi.status.critique",
+  critique_done: "magi.status.critique_done",
+  auditor: "magi.status.auditor",
+  auditor_done: "magi.status.auditor_done",
+  judge: "magi.status.judge",
+  judge_done: "magi.status.judge_done",
+  score: "magi.status.score",
+  score_done: "magi.status.score_done",
+  saved: "magi.status.saved",
+  completed: "magi.status.completed",
+  error: "magi.status.error"
+};
+
+function formatTemplate(template, values = {}) {
+  return String(template).replace(/\{(\w+)\}/g, (_, key) =>
+    Object.prototype.hasOwnProperty.call(values, key) ? values[key] : `{${key}}`
+  );
+}
+
+function t(key, values = {}) {
+  const catalogs = i18n?.catalogs || {};
+  const catalog = catalogs[language] || catalogs[i18n?.default_language] || {};
+  return formatTemplate(catalog[key] ?? key, values);
+}
+
+function phaseLabel(phase) {
+  if (config?.demo_mode && phase === "starting") {
+    return t("magi.demo.replaying");
+  }
+  if (config?.demo_mode && phase === "completed") {
+    return t("magi.demo.completed");
+  }
+  return t(PHASE_KEYS[phase] || "magi.status.starting");
+}
+
+function applyLanguage() {
+  document.documentElement.lang = language;
+
+  $$("[data-i18n]").forEach(node => {
+    node.textContent = t(node.dataset.i18n);
+  });
+
+  $$("[data-i18n-placeholder]").forEach(node => {
+    node.placeholder = t(node.dataset.i18nPlaceholder);
+  });
+
+  $$("[data-i18n-aria-label]").forEach(node => {
+    node.setAttribute("aria-label", t(node.dataset.i18nAriaLabel));
+  });
+
+  $("#languageSelect").value = language;
+}
+
+function applyConfigText() {
+  if (!config) return;
+
+  if (config.demo_mode) {
+    $("#demoCaseSelect").querySelectorAll("option").forEach(option => {
+      option.textContent = t(`demo.case.${option.value}`);
+    });
+
+    $("#providerLegend").textContent = t("magi.demo.provider_legend");
+    $("#questionLabel").textContent = t("magi.demo.question_label");
+    $("#runButton").textContent = t("magi.demo.run");
+    $("#judgeInfo").textContent = t("magi.demo.judge");
+  } else {
+    $("#providerLegend").textContent = t("magi.providers.legend");
+    $("#questionLabel").textContent = t("magi.question.label");
+    $("#runButton").textContent = t("magi.run.start");
+    $("#judgeInfo").textContent = t("magi.judge.live", {
+      provider: config.judge_provider.toUpperCase()
+    });
+  }
+}
+
+async function setLanguage(nextLanguage) {
+  if (!i18n?.supported_languages?.includes(nextLanguage)) return;
+
+  language = nextLanguage;
+  localStorage.setItem(i18n.storage_key, language);
+
+  applyLanguage();
+  applyConfigText();
+  refreshSystem();
+
+  if (lastJobPhase) {
+    $("#progressMessage").textContent = phaseLabel(lastJobPhase);
+  }
+
+  if (lastRenderedRun) {
+    renderRun(lastRenderedRun, false);
+  }
+
+  if (config) {
+    await loadHistory();
+  }
+}
+
+async function loadI18n() {
+  i18n = await fetch("/api/i18n").then(response => {
+    if (!response.ok) throw new Error("Could not load localization catalog");
+    return response.json();
+  });
+
+  const stored = localStorage.getItem(i18n.storage_key);
+  language = i18n.supported_languages.includes(stored)
+    ? stored
+    : i18n.default_language;
+
+  $("#languageSelect").addEventListener("change", event => {
+    setLanguage(event.target.value);
+  });
+
+  applyLanguage();
+}
+
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -40,10 +172,20 @@ function renderText(text) {
   return html;
 }
 
-function setSystem(status, label) {
+function setSystem(status, key, values = {}) {
+  currentSystem = {status, key, values};
+
   const node = $("#systemStatus");
   node.className = `system-status ${status || ""}`;
-  node.innerHTML = `<i></i> ${escapeHtml(label)}`;
+  node.innerHTML = `<i></i> ${escapeHtml(t(key, values))}`;
+}
+
+function refreshSystem() {
+  setSystem(
+    currentSystem.status,
+    currentSystem.key,
+    currentSystem.values
+  );
 }
 
 function setAgentState(name, state, label) {
@@ -55,7 +197,7 @@ function setAgentState(name, state, label) {
 
 function resetOutput() {
   ["MELCHIOR", "BALTHASAR", "CASPER"].forEach(name => {
-    setAgentState(name, "", "IN ATTESA");
+    setAgentState(name, "", t("magi.agent.waiting"));
     document.querySelector(`[data-agent="${name}"] .agent-output`).innerHTML = "";
   });
   ["auditorPanel", "verdictPanel", "scorePanel", "telemetryPanel", "demoNotice"].forEach(id => $("#" + id).classList.add("hidden"));
@@ -77,21 +219,19 @@ function phaseProgress(phase) {
   });
 }
 
+
 async function loadConfig() {
-  config = await fetch("/api/config").then(r => r.json());
+  config = await fetch("/api/config").then(response => {
+    if (!response.ok) throw new Error("Could not load MAGI configuration");
+    return response.json();
+  });
 
   const providers = ["openai", "anthropic", "gemini", "groq"];
 
   if (config.demo_mode) {
     $("#demoBanner").classList.remove("hidden");
     $("#demoControls").classList.remove("hidden");
-    $("#providerLegend").textContent = "PROVIDER REGISTRATI";
-    $("#questionLabel").textContent = "QUESITO DEMO | PREREGISTRATO";
     $("#question").readOnly = true;
-    $("#runButton").textContent = "RIPRODUCI DELIBERAZIONE";
-    $("#judgeInfo").textContent = "JUDGE: RECORDED DEMO";
-    $("#history").innerHTML =
-      '<span class="muted">I run demo non vengono salvati nella cronologia.</span>';
 
     for (const provider of providers) {
       const input = document.querySelector(`.provider[value="${provider}"]`);
@@ -103,12 +243,12 @@ async function loadConfig() {
 
     const cases = config.demo_cases || [];
     if (!cases.length) {
-      throw new Error("Nessun caso demo disponibile.");
+      throw new Error(t("magi.demo.no_cases"));
     }
 
     const select = $("#demoCaseSelect");
     select.innerHTML = cases.map(item =>
-      `<option value="${escapeHtml(item.id)}">${escapeHtml(item.title)}</option>`
+      `<option value="${escapeHtml(item.id)}">${escapeHtml(t(`demo.case.${item.id}`))}</option>`
     ).join("");
 
     const loadDemoCase = () => {
@@ -123,7 +263,8 @@ async function loadConfig() {
     $("#loadDemoButton").addEventListener("click", loadDemoCase);
 
     loadDemoCase();
-    setSystem("", "DEMO READY");
+    applyConfigText();
+    setSystem("", "magi.demo.ready");
     return;
   }
 
@@ -136,8 +277,8 @@ async function loadConfig() {
       config.models[provider] || "";
   }
 
-  $("#judgeInfo").textContent =
-    `JUDGE: ${config.judge_provider.toUpperCase()} ? reale solo se selezionato`;
+  applyConfigText();
+  setSystem("", "magi.system.standby");
 }
 
 async function submitRun() {
@@ -153,9 +294,9 @@ async function submitRun() {
   const auditor = $("#auditor").checked;
   $("#runButton").disabled = true;
   $("#progressPanel").classList.remove("hidden");
-  setSystem("running", "DELIBERATING");
+  setSystem("running", "magi.system.deliberating");
   startedAt = performance.now();
-  ["MELCHIOR", "BALTHASAR", "CASPER"].forEach(name => setAgentState(name, "processing", "ANALISI IN CORSO"));
+  ["MELCHIOR", "BALTHASAR", "CASPER"].forEach(name => setAgentState(name, "processing", t("magi.agent.processing")));
 
   try {
     const response = await fetch("/api/jobs", {
@@ -178,50 +319,74 @@ async function submitRun() {
   }
 }
 
+
 function failRun(message) {
   clearTimeout(pollTimer);
   $("#runButton").disabled = false;
   $("#errorMessage").textContent = message;
-  setSystem("error", "ERROR");
-  ["MELCHIOR", "BALTHASAR", "CASPER"].forEach(name => setAgentState(name, "failed", "ERRORE"));
+  setSystem("error", "magi.system.error");
+
+  ["MELCHIOR", "BALTHASAR", "CASPER"].forEach(name =>
+    setAgentState(name, "failed", t("magi.agent.failed"))
+  );
 }
+
 
 async function pollJob() {
   if (!activeJob) return;
+
   try {
-    const job = await fetch(`/api/jobs/${activeJob}`).then(r => {
-      if (!r.ok) throw new Error("Job non trovato");
-      return r.json();
+    const job = await fetch(`/api/jobs/${activeJob}`).then(response => {
+      if (!response.ok) throw new Error(t("magi.error.job_not_found"));
+      return response.json();
     });
-    $("#progressMessage").textContent = job.message || job.phase;
+
+    lastJobPhase = job.phase;
+    $("#progressMessage").textContent = phaseLabel(job.phase);
+
     const elapsed = (performance.now() - startedAt) / 1000;
     $("#elapsed").textContent = `${elapsed.toFixed(1)} s`;
     phaseProgress(job.phase);
 
-    if (["initial_done", "critique", "critique_done", "auditor", "auditor_done", "judge", "judge_done", "score", "score_done", "saved"].includes(job.phase)) {
-      ["MELCHIOR", "BALTHASAR", "CASPER"].forEach(name => setAgentState(name, "complete", job.phase.startsWith("critique") ? "REVISIONE" : "COMPLETATO"));
+    if ([
+      "initial_done", "critique", "critique_done", "auditor",
+      "auditor_done", "judge", "judge_done", "score",
+      "score_done", "saved"
+    ].includes(job.phase)) {
+      const stateLabel = job.phase.startsWith("critique")
+        ? t("magi.agent.revision")
+        : t("magi.agent.complete");
+
+      ["MELCHIOR", "BALTHASAR", "CASPER"].forEach(name =>
+        setAgentState(name, "complete", stateLabel)
+      );
     }
+
     if (job.status === "completed") {
+      lastJobPhase = "completed";
       renderRun(job.result);
       $("#runButton").disabled = false;
-      setSystem("", "COMPLETE");
+      setSystem("", "magi.system.complete");
       phaseProgress("completed");
-      loadHistory();
+      await loadHistory();
       return;
     }
+
     if (job.status === "error") {
-      failRun(job.error || "Errore sconosciuto");
+      failRun(job.error || t("magi.error.unknown"));
       return;
     }
+
     pollTimer = setTimeout(pollJob, 850);
   } catch (error) {
     failRun(error.message);
   }
 }
 
+
 function resultMeta(result) {
   if (result.demo_recording) {
-    return `${result.provider} / STATIC FIXTURE`;
+    return `${result.provider} / ${t("magi.demo.static_fixture")}`;
   }
 
   const tokens = (result.input_tokens != null || result.output_tokens != null)
@@ -231,22 +396,37 @@ function resultMeta(result) {
   return `${result.provider}/${result.model} | ${Number(result.latency_seconds || 0).toFixed(2)} s${tokens}`;
 }
 
-function renderRun(run) {
+
+function renderRun(run, scroll = true) {
+  lastRenderedRun = run;
+
   if (run.demo_mode) {
     $("#demoNotice").classList.remove("hidden");
-    $("#demoNotice").textContent =
-      run.demo_notice ||
-      "Prerecorded demonstration. No external model API calls were made.";
+    $("#demoNotice").textContent = t("magi.demo.notice");
   }
 
   for (const agent of run.agents || []) {
     const card = document.querySelector(`[data-agent="${agent.agent}"]`);
     const initial = agent.initial || {};
-    setAgentState(agent.agent, initial.error ? "failed" : "complete", resultMeta(initial));
-    let html = initial.error ? `<p class="error-message">${escapeHtml(initial.error)}</p>` : renderText(initial.text);
+
+    setAgentState(
+      agent.agent,
+      initial.error ? "failed" : "complete",
+      resultMeta(initial)
+    );
+
+    let html = initial.error
+      ? `<p class="error-message">${escapeHtml(initial.error)}</p>`
+      : renderText(initial.text);
+
     if (agent.critique && agent.critique.text) {
-      html += `<details><summary>CRITICA INCROCIATA</summary><div class="rich-text">${renderText(agent.critique.text)}</div></details>`;
+      html += `
+        <details>
+          <summary>${escapeHtml(t("magi.critique.cross_review"))}</summary>
+          <div class="rich-text">${renderText(agent.critique.text)}</div>
+        </details>`;
     }
+
     card.querySelector(".agent-output").innerHTML = html;
   }
 
@@ -266,7 +446,15 @@ function renderRun(run) {
 
   if (run.scorecard) renderScorecard(run.scorecard);
   renderTelemetry(run);
-  setTimeout(() => $("#verdictPanel").scrollIntoView({behavior:"smooth", block:"start"}), 120);
+
+  if (scroll) {
+    setTimeout(() =>
+      $("#verdictPanel").scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      }), 120
+    );
+  }
 }
 
 function metric(label, value) {
@@ -274,29 +462,36 @@ function metric(label, value) {
   return `<div class="metric"><span>${label}</span><div class="metric-track"><div class="metric-fill" style="width:${v}%"></div></div><b>${v}</b></div>`;
 }
 
+
 function renderScorecard(scorecard) {
   $("#scorePanel").classList.remove("hidden");
+
   if (!scorecard.parsed) {
-    $("#scoreCards").innerHTML = `<p class="error-message">Scorecard non interpretabile: ${escapeHtml(scorecard.parse_error || "errore")}</p>`;
+    $("#scoreCards").innerHTML =
+      `<p class="error-message">${escapeHtml(t("magi.score.unparseable"))}: ${escapeHtml(scorecard.parse_error || t("common.error"))}</p>`;
     return;
   }
+
   $("#globalConfidence").textContent = `${scorecard.global_confidence}%`;
   $("#consensusLevel").textContent = `${scorecard.consensus_level}%`;
+
   $("#scoreCards").innerHTML = (scorecard.agents || []).map(agent => `
     <article class="score-card">
       <h3>${escapeHtml(agent.agent)}</h3>
-      ${metric("Rigore", agent.technical_rigor)}
-      ${metric("Rilevanza", agent.relevance)}
-      ${metric("Incertezza", agent.uncertainty_handling)}
-      ${metric("Praticità", agent.practical_value)}
-      ${metric("Peso", agent.decision_weight)}
+      ${metric(t("magi.score.rigor"), agent.technical_rigor)}
+      ${metric(t("magi.score.relevance"), agent.relevance)}
+      ${metric(t("magi.score.uncertainty"), agent.uncertainty_handling)}
+      ${metric(t("magi.score.practicality"), agent.practical_value)}
+      ${metric(t("magi.score.weight"), agent.decision_weight)}
       <p>${escapeHtml(agent.rationale)}</p>
     </article>`).join("");
+
   $("#scoreNotes").innerHTML = `
-    <div><b>CONTRIBUTO PIÙ FORTE</b>${escapeHtml(scorecard.strongest_contribution)}</div>
-    <div><b>CORREZIONE PRINCIPALE</b>${escapeHtml(scorecard.main_correction)}</div>
-    <div><b>INCERTEZZA RESIDUA</b>${escapeHtml(scorecard.residual_uncertainty)}</div>`;
+    <div><b>${escapeHtml(t("magi.score.strongest"))}</b>${escapeHtml(scorecard.strongest_contribution)}</div>
+    <div><b>${escapeHtml(t("magi.score.correction"))}</b>${escapeHtml(scorecard.main_correction)}</div>
+    <div><b>${escapeHtml(t("magi.score.residual"))}</b>${escapeHtml(scorecard.residual_uncertainty)}</div>`;
 }
+
 
 function renderTelemetry(run) {
   const calls = [];
@@ -310,22 +505,22 @@ function renderTelemetry(run) {
   if (run.verdict) calls.push(run.verdict);
   if (run.scorecard?.evaluator) calls.push(run.scorecard.evaluator);
 
-  const errors = calls.filter(c => c.error).length;
+  const errors = calls.filter(call => call.error).length;
   const incomplete = calls.filter(
-    c => c.status === "incomplete" || c.incomplete_reason
+    call => call.status === "incomplete" || call.incomplete_reason
   ).length;
 
   $("#telemetryPanel").classList.remove("hidden");
 
   if (run.demo_mode) {
     $("#telemetry").innerHTML = [
-      [calls.length, "DEMO STEPS"],
-      ["N/A", "TOKEN INPUT"],
-      ["N/A", "TOKEN OUTPUT"],
-      ["N/A", "LATENCY"],
-      [`${errors}/${incomplete}`, "ERRORS/INCOMPLETE"]
+      [calls.length, t("magi.telemetry.demo_steps")],
+      [t("common.not_available"), t("magi.telemetry.token_input")],
+      [t("common.not_available"), t("magi.telemetry.token_output")],
+      [t("common.not_available"), t("magi.telemetry.latency")],
+      [`${errors}/${incomplete}`, t("magi.telemetry.errors")]
     ].map(([value, label]) =>
-      `<div><strong>${escapeHtml(value)}</strong><span>${label}</span></div>`
+      `<div><strong>${escapeHtml(value)}</strong><span>${escapeHtml(label)}</span></div>`
     ).join("");
 
     return;
@@ -342,38 +537,63 @@ function renderTelemetry(run) {
   );
 
   $("#telemetry").innerHTML = [
-    [calls.length, "CHIAMATE"],
-    [input, "TOKEN INPUT"],
-    [output, "TOKEN OUTPUT"],
-    [`${Number(run.wall_time_seconds || 0).toFixed(1)}s`, "TEMPO REALE"],
-    [`${errors}/${incomplete}`, "ERRORI/INCOMPLETE"]
+    [calls.length, t("magi.telemetry.calls")],
+    [input, t("magi.telemetry.token_input")],
+    [output, t("magi.telemetry.token_output")],
+    [`${Number(run.wall_time_seconds || 0).toFixed(1)}s`, t("magi.telemetry.wall_time")],
+    [`${errors}/${incomplete}`, t("magi.telemetry.errors")]
   ].map(([value, label]) =>
-    `<div><strong>${escapeHtml(value)}</strong><span>${label}</span></div>`
+    `<div><strong>${escapeHtml(value)}</strong><span>${escapeHtml(label)}</span></div>`
   ).join("");
 }
+
 
 async function loadHistory() {
   if (config?.demo_mode) {
     $("#history").innerHTML =
-      '<span class="muted">I run demo non vengono salvati nella cronologia.</span>';
+      `<span class="muted">${escapeHtml(t("magi.demo.history"))}</span>`;
     return;
   }
 
   try {
-    const runs = await fetch("/api/runs?limit=10").then(r => r.json());
-    if (!runs.length) return;
+    const runs = await fetch("/api/runs?limit=10").then(response => {
+      if (!response.ok) throw new Error();
+      return response.json();
+    });
+
+    if (!runs.length) {
+      $("#history").innerHTML =
+        `<span class="muted">${escapeHtml(t("magi.history.empty"))}</span>`;
+      return;
+    }
+
     $("#history").innerHTML = runs.map(run => `
       <article class="history-item" data-run="${escapeHtml(run.run_id)}">
-        <div class="history-meta"><span>${escapeHtml(run.run_id)}</span><span>${run.global_confidence != null ? run.global_confidence + "%" : "—"}</span></div>
+        <div class="history-meta">
+          <span>${escapeHtml(run.run_id)}</span>
+          <span>${run.global_confidence != null ? run.global_confidence + "%" : "?"}</span>
+        </div>
         <p>${escapeHtml(run.question)}</p>
       </article>`).join("");
-    $$(".history-item").forEach(item => item.addEventListener("click", async () => {
-      const run = await fetch(`/api/runs/${item.dataset.run}`).then(r => r.json());
-      $("#question").value = run.question || "";
-      resetOutput();
-      renderRun(run);
-    }));
-  } catch (_) {}
+
+    $$(".history-item").forEach(item =>
+      item.addEventListener("click", async () => {
+        const response = await fetch(`/api/runs/${item.dataset.run}`);
+
+        if (!response.ok) {
+          throw new Error(t("magi.error.run_not_found"));
+        }
+
+        const run = await response.json();
+        $("#question").value = run.question || "";
+        resetOutput();
+        renderRun(run);
+      })
+    );
+  } catch (_) {
+    $("#history").innerHTML =
+      `<span class="muted">${escapeHtml(t("magi.history.empty"))}</span>`;
+  }
 }
 
 $("#runButton").addEventListener("click", submitRun);
@@ -383,10 +603,13 @@ $("#question").addEventListener("keydown", event => {
 
 (async function boot() {
   try {
+    await loadI18n();
     await loadConfig();
     await loadHistory();
   } catch (error) {
-    $("#errorMessage").textContent = `Errore inizializzazione: ${error.message}`;
-    setSystem("error", "CONFIG ERROR");
+    $("#errorMessage").textContent = t("magi.error.init", {
+      message: error.message
+    });
+    setSystem("error", "magi.system.config_error");
   }
 })();

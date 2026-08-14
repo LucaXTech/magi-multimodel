@@ -87,8 +87,8 @@ def test_magi_demo_config_requires_no_api_keys():
 def test_magi_demo_ui_discloses_recorded_mode():
     html = Path("magi/static/index.html").read_text(encoding="utf-8")
 
-    assert "DEMO PREREGISTRATA" in html
-    assert "Nessuna chiamata API" in html
+    assert "PRERECORDED DEMO" in html
+    assert "No API calls" in html
     assert "demoCaseSelect" in html
 
 

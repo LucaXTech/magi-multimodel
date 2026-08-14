@@ -16,6 +16,10 @@ CATALOGS: dict[str, dict[str, str]] = {
         "common.error": "Error",
         "common.not_available": "N/A",
 
+        "demo.case.eeg_subject_leakage": "EEG subject leakage",
+        "demo.case.imbalanced_accuracy": "Imbalanced classification metric",
+        "demo.case.imbalanced_classifier": "Imbalanced classifier metrics",
+
         "magi.demo.title": "PRERECORDED DEMO",
         "magi.demo.subtitle": "No API calls | no data sent externally",
         "magi.demo.case": "DEMO CASE",
@@ -29,6 +33,15 @@ CATALOGS: dict[str, dict[str, str]] = {
         "magi.demo.no_cases": "No demo cases are available.",
         "magi.demo.notice": "Prerecorded demonstration. No external model API calls were made.",
         "magi.demo.history": "Demo runs are not stored in history.",
+        "magi.demo.static_fixture": "STATIC FIXTURE",
+        "magi.demo.replaying": "Replaying prerecorded demo",
+        "magi.demo.completed": "Prerecorded demo completed",
+
+        "magi.system.standby": "STANDBY",
+        "magi.system.deliberating": "DELIBERATING",
+        "magi.system.complete": "COMPLETE",
+        "magi.system.config_error": "CONFIG ERROR",
+        "magi.system.error": "ERROR",
 
         "magi.question.label": "QUESTION",
         "magi.question.placeholder": "Enter the problem to submit to the three agents...",
@@ -119,6 +132,7 @@ CATALOGS: dict[str, dict[str, str]] = {
         "bioaudit.demo.title": "PRERECORDED DEMO",
         "bioaudit.demo.subtitle": "No model API calls are made and no submitted data leave this computer.",
         "bioaudit.demo.ready": "Prerecorded demo ready.",
+        "bioaudit.demo.source": "STATIC DEMO",
         "bioaudit.demo.run": "REPLAY AUDIT",
         "bioaudit.demo.notice": "Prerecorded demonstration. No external model API calls were made.",
 
@@ -168,6 +182,10 @@ CATALOGS: dict[str, dict[str, str]] = {
         "common.error": "Errore",
         "common.not_available": "N/D",
 
+        "demo.case.eeg_subject_leakage": "Leakage tra partecipanti EEG",
+        "demo.case.imbalanced_accuracy": "Accuratezza con classi sbilanciate",
+        "demo.case.imbalanced_classifier": "Metriche per classificatore sbilanciato",
+
         "magi.demo.title": "DEMO PREREGISTRATA",
         "magi.demo.subtitle": "Nessuna chiamata API | nessun dato inviato all'esterno",
         "magi.demo.case": "CASO DEMO",
@@ -181,6 +199,15 @@ CATALOGS: dict[str, dict[str, str]] = {
         "magi.demo.no_cases": "Nessun caso demo disponibile.",
         "magi.demo.notice": "Dimostrazione preregistrata. Non è stata effettuata alcuna chiamata a modelli esterni.",
         "magi.demo.history": "I run demo non vengono salvati nella cronologia.",
+        "magi.demo.static_fixture": "FIXTURE STATICA",
+        "magi.demo.replaying": "Riproduzione demo preregistrata",
+        "magi.demo.completed": "Demo preregistrata completata",
+
+        "magi.system.standby": "IN ATTESA",
+        "magi.system.deliberating": "DELIBERAZIONE",
+        "magi.system.complete": "COMPLETATO",
+        "magi.system.config_error": "ERRORE CONFIG",
+        "magi.system.error": "ERRORE",
 
         "magi.question.label": "QUESITO",
         "magi.question.placeholder": "Inserisci il problema da sottoporre ai tre agenti...",
@@ -271,6 +298,7 @@ CATALOGS: dict[str, dict[str, str]] = {
         "bioaudit.demo.title": "DEMO PREREGISTRATA",
         "bioaudit.demo.subtitle": "Nessuna chiamata API ai modelli e nessun dato inviato fuori dal computer.",
         "bioaudit.demo.ready": "Demo preregistrata pronta.",
+        "bioaudit.demo.source": "DEMO STATICA",
         "bioaudit.demo.run": "RIPRODUCI AUDIT",
         "bioaudit.demo.notice": "Dimostrazione preregistrata. Non è stata effettuata alcuna chiamata a modelli esterni.",
 
