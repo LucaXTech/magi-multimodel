@@ -1,0 +1,63 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "magi-multimodel"
+dynamic = ["version"]
+description = "Experimental multi-model LLM deliberation framework with biomedical methodology auditing and evidence-first benchmarking."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+    { name = "Luca Serioli", email = "luca@serioli.org" }
+]
+dependencies = [
+    "openai",
+    "anthropic",
+    "google-genai>=2.3.0",
+    "python-dotenv",
+    "fastapi",
+    "uvicorn",
+    "groq>=0.31.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+]
+
+[project.scripts]
+magi-web = "magi.web:main"
+bioaudit-web = "bioaudit.web:main"
+magi-benchmark-validate = "benchmark.validate_objective:main"
+
+[project.urls]
+Repository = "https://github.com/LucaXTech/magi-multimodel"
+Issues = "https://github.com/LucaXTech/magi-multimodel/issues"
+
+[tool.setuptools.dynamic]
+version = { file = ["VERSION"] }
+
+[tool.setuptools.packages.find]
+include = [
+    "magi*",
+    "bioaudit*",
+    "benchmark*",
+]
+
+[tool.setuptools.package-data]
+magi = [
+    "static/*.html",
+    "static/*.css",
+    "static/*.js",
+]
+benchmark = [
+    "*.json",
+    "*.jsonl",
+]
+bioaudit = [
+    "examples/*.txt",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
