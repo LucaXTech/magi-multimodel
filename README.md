@@ -1,5 +1,7 @@
 # MAGI
 
+[![Tests](https://github.com/LucaXTech/magi-multimodel/actions/workflows/tests.yml/badge.svg)](https://github.com/LucaXTech/magi-multimodel/actions/workflows/tests.yml)
+
 **Multi-model deliberation and biomedical methodology auditing.**
 
 MAGI is an experimental Python framework that orchestrates heterogeneous LLM providers as specialized agents, compares their reasoning, and produces a final synthesis. The repository also includes **BioAudit**, a vertical prototype for auditing biomedical/ML methodology, and an evidence-first benchmark framework for evaluating whether multi-model deliberation actually adds value.
