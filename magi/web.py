@@ -4,6 +4,7 @@ import argparse
 import json
 import re
 import threading
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -15,12 +16,14 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from .config import Settings
+from .demo import build_demo_run, list_demo_cases
 from .orchestrator import MagiOrchestrator
 from .providers import PROVIDER_NAMES, build_providers
 
 
 STATIC_DIR = Path(__file__).with_name("static")
 RUN_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
+DEMO_MODE = False
 
 
 class RunRequest(BaseModel):
@@ -31,6 +34,7 @@ class RunRequest(BaseModel):
     auditor: bool = False
     blind_judge: bool = False
     random_seed: int | None = None
+    demo_case: str | None = None
 
 
 class JobStore:
@@ -146,6 +150,70 @@ def _run_worker(job_id: str, request: RunRequest) -> None:
         )
 
 
+def _demo_worker(job_id: str, request: RunRequest) -> None:
+    try:
+        case_id = request.demo_case or "eeg_subject_leakage"
+
+        jobs.update(
+            job_id,
+            status="running",
+            phase="starting",
+            message="Starting prerecorded demo",
+        )
+
+        jobs.event(job_id, "initial_started", {"demo": True})
+        time.sleep(0.25)
+        jobs.event(job_id, "initial_completed", {"demo": True})
+
+        if request.critique:
+            time.sleep(0.20)
+            jobs.event(job_id, "critique_started", {"demo": True})
+            time.sleep(0.25)
+            jobs.event(job_id, "critique_completed", {"demo": True})
+
+        if request.auditor:
+            time.sleep(0.20)
+            jobs.event(job_id, "auditor_started", {"demo": True})
+            time.sleep(0.25)
+            jobs.event(job_id, "auditor_completed", {"demo": True})
+
+        time.sleep(0.20)
+        jobs.event(job_id, "judge_started", {"demo": True})
+        time.sleep(0.25)
+        jobs.event(job_id, "judge_completed", {"demo": True})
+
+        if request.score:
+            time.sleep(0.20)
+            jobs.event(job_id, "score_started", {"demo": True})
+            time.sleep(0.25)
+            jobs.event(job_id, "score_completed", {"demo": True})
+
+        run = build_demo_run(
+            case_id,
+            critique=request.critique,
+            score=request.score,
+            auditor=request.auditor,
+        )
+
+        jobs.update(
+            job_id,
+            status="completed",
+            phase="completed",
+            message="Prerecorded demo completed",
+            result=run,
+            output_path=None,
+        )
+
+    except Exception as exc:
+        jobs.update(
+            job_id,
+            status="error",
+            phase="error",
+            message="Demo failed",
+            error=f"{type(exc).__name__}: {exc}",
+        )
+
+
 @app.get("/")
 def index() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
@@ -163,6 +231,26 @@ def javascript() -> FileResponse:
 
 @app.get("/api/config")
 def config() -> dict[str, Any]:
+    if DEMO_MODE:
+        return {
+            "available": {
+                "openai": True,
+                "anthropic": True,
+                "gemini": True,
+                "groq": True,
+            },
+            "models": {
+                "openai": "recorded-demo",
+                "anthropic": "recorded-demo",
+                "gemini": "recorded-demo",
+                "groq": "recorded-demo",
+            },
+            "judge_provider": "openai",
+            "auditor_provider": "groq",
+            "demo_mode": True,
+            "demo_cases": list_demo_cases(),
+        }
+
     settings = Settings.from_env()
     return {
         "available": {
@@ -179,6 +267,8 @@ def config() -> dict[str, Any]:
         },
         "judge_provider": settings.judge_provider,
         "auditor_provider": settings.auditor_provider,
+        "demo_mode": DEMO_MODE,
+        "demo_cases": list_demo_cases() if DEMO_MODE else [],
     }
 
 
@@ -186,8 +276,9 @@ def config() -> dict[str, Any]:
 def create_job(request: RunRequest) -> dict[str, str]:
     request.real_providers = list(dict.fromkeys(p.lower() for p in request.real_providers))
     job_id = jobs.create(request)
+    worker = _demo_worker if DEMO_MODE else _run_worker
     thread = threading.Thread(
-        target=_run_worker,
+        target=worker,
         args=(job_id, request),
         daemon=True,
     )
@@ -221,6 +312,8 @@ def _run_summary(payload: dict[str, Any]) -> dict[str, Any]:
 
 @app.get("/api/runs")
 def list_runs(limit: int = 12) -> list[dict[str, Any]]:
+    if DEMO_MODE:
+        return []
     settings = Settings.from_env()
     directory = settings.runs_dir
     if not directory.exists():
@@ -251,17 +344,36 @@ def get_run(run_id: str) -> dict[str, Any]:
 
 
 def main() -> None:
+    global DEMO_MODE
+
     parser = argparse.ArgumentParser(description="MAGI touch-friendly web console")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--reload", action="store_true")
-    args = parser.parse_args()
-    uvicorn.run(
-        "magi.web:app",
-        host=args.host,
-        port=args.port,
-        reload=args.reload,
+    parser.add_argument(
+        "--demo",
+        action="store_true",
+        help="Run with prerecorded demonstrations and no external model API calls.",
     )
+    args = parser.parse_args()
+
+    DEMO_MODE = args.demo
+
+    if DEMO_MODE:
+        if args.reload:
+            parser.error("--demo cannot be combined with --reload")
+        uvicorn.run(
+            app,
+            host=args.host,
+            port=args.port,
+        )
+    else:
+        uvicorn.run(
+            "magi.web:app",
+            host=args.host,
+            port=args.port,
+            reload=args.reload,
+        )
 
 
 if __name__ == "__main__":
