@@ -19,6 +19,9 @@ from .prompts import AGENT_SYSTEMS, AUDITOR_SYSTEM, JUDGE_SYSTEM, agent_prompt, 
 AGENT_PROVIDER = {"MELCHIOR": "openai", "BALTHASAR": "anthropic", "CASPER": "gemini"}
 
 
+#       /\_/\
+#      ( o.o )  Check twice. Claim once.
+#       > ^ <
 def _parallel(jobs: dict[str, tuple[Provider, str, str]]) -> dict[str, LLMResult]:
     output: dict[str, LLMResult] = {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(jobs)) as executor:

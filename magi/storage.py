@@ -6,6 +6,9 @@ from pathlib import Path
 from .types import MagiRun
 
 
+#       /\_/\
+#      ( -.- )  The archivist keeps every run traceable.
+#       > ^ <
 def save_run(run: MagiRun, directory: Path) -> Path:
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"{run.run_id}.json"

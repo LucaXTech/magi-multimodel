@@ -11,6 +11,9 @@ from .types import LLMResult
 PROVIDER_NAMES = ("openai", "anthropic", "gemini", "groq")
 
 
+#       /\_/\
+#      ( ^.^ )  Many engines, one careful boundary.
+#       > ~ <
 def _get_attr(obj: Any, name: str) -> Any:
     if obj is None:
         return None

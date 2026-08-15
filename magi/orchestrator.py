@@ -35,6 +35,9 @@ AGENT_PROVIDER = {
 EventCallback = Callable[[str, dict[str, Any]], None]
 
 
+#       /\_/\
+#      ( o.o )  Listen to every answer; trust only the evidence.
+#       > ^ <
 class MagiOrchestrator:
     def __init__(self, settings: Settings, providers: dict[str, Provider]) -> None:
         self.settings = settings
